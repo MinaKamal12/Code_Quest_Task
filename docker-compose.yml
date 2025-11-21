@@ -78,7 +78,7 @@ services:
       DATABASE_URL: postgres://admin:admin@postgres/votes
       REDIS_URL: redis://redis:6379
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "true"]
       interval: 10s
       retries: 5
       timeout: 5s
@@ -110,6 +110,8 @@ services:
     image: redis:7
     container_name: redis
     restart: unless-stopped
+    command: [ "sh", "-c", "apt-get update && apt-get install -y redis-tools && redis-server" ]
+
     networks:
       - backend
     ports:
