@@ -106,23 +106,33 @@ services:
   # -------------------
   # Backend Support Services
   # -------------------
-  redis:
-    image: redis:7
-    container_name: redis
-    restart: unless-stopped
-    command: [ "sh", "-c", "apt-get update && apt-get install -y redis-tools && redis-server" ]
+  # redis:
+  #   image: redis:7
+  #   container_name: redis
+  #   restart: unless-stopped
+  #   command: [ "sh", "-c", "apt-get update && apt-get install -y redis-tools && redis-server" ]
 
-    networks:
-      - backend
-    ports:
-      - "6379:6379"
-    volumes:
-      - ./healthchecks:/healthchecks:ro
-    # healthcheck:
-    #   test: ["CMD-SHELL", "./healthchecks/redis.sh"]
-    #   interval: 10s
-    #   retries: 5
-    #   timeout: 5s
+  #   networks:
+  #     - backend
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - ./healthchecks:/healthchecks:ro
+  #   # healthcheck:
+  #   #   test: ["CMD-SHELL", "./healthchecks/redis.sh"]
+  #   #   interval: 10s
+  #   #   retries: 5
+  #   #   timeout: 5s
+
+  redis:
+  image: redis:7
+  container_name: redis
+  restart: unless-stopped
+  networks:
+    - backend
+  ports:
+    - "6379:6379"
+
 
   postgres:
     image: postgres:15
