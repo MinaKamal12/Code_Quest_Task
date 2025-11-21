@@ -42,14 +42,14 @@ jobs:
       # -----------------------------------------------------------
       - name: Build images
         run: |
-          docker compose -f DockerCompose.yml build
+          docker compose -f docker-compose.yml.yml build
 
       # -----------------------------------------------------------
       # RUN DOCKER COMPOSE FOR TESTING
       # -----------------------------------------------------------
       - name: Start services for testing
         run: |
-          docker compose -f DockerCompose.yml up -d
+          docker compose -f docker-compose.yml up -d
 
       # # -----------------------------------------------------------
       # # HEALTH CHECK — vote (with retries)
@@ -92,14 +92,14 @@ jobs:
       # -----------------------------------------------------------
       - name: Stop test containers
         run: |
-          docker compose -f DockerCompose.yml down
+          docker compose -f docker-compose.yml down
 
       # -----------------------------------------------------------
       # PUSH IMAGES TO DOCKER HUB
       # -----------------------------------------------------------
       - name: Push images to Docker Hub
         run: |
-          docker compose -f DockerCompose.yml push
+          docker compose -f docker-compose.yml push
 
            # -----------------------------------------------------------
       # DEPLOY TO EC2 (SSH)
