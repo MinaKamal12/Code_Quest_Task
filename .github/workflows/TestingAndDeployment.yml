@@ -42,7 +42,7 @@ jobs:
       # -----------------------------------------------------------
       - name: Build images
         run: |
-          docker compose -f docker-compose.yml.yml build
+          docker compose -f docker-compose.yml build
 
       # -----------------------------------------------------------
       # RUN DOCKER COMPOSE FOR TESTING
