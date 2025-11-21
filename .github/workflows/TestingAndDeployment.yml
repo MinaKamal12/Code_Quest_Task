@@ -136,7 +136,7 @@ jobs:
             if [ -d ".git" ]; then
               git pull
             else
-              git clone https://github.com/MinaKamal12/Code_Quest.git .
+              git clone https://github.com/MinaKamal12/Code_Quest_Task.git .
             fi
 
             echo ">>> Pull latest docker images"
