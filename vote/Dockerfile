@@ -12,6 +12,8 @@ RUN useradd -m -u 1002 appuser
 
 COPY vote/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y redis-tools
+
 
 # Copy all vote files (this includes app.py)
 COPY vote/ .
