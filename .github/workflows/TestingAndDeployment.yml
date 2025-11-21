@@ -1,0 +1,149 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  build-test-publish-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+      EC2_HOST: ${{ secrets.EC2_HOST }}
+      EC2_USER: ${{ secrets.EC2_USER }}
+      EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+
+    steps:
+      # -----------------------------------------------------------
+      # CHECKOUT CODE
+      # -----------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------
+      # SETUP DOCKER BUILDX
+      # -----------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # -----------------------------------------------------------
+      # LOGIN TO DOCKER HUB
+      # -----------------------------------------------------------
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_TOKEN }}
+
+      # -----------------------------------------------------------
+      # BUILD DOCKER IMAGES (vote, result, worker)
+      # -----------------------------------------------------------
+      - name: Build images
+        run: |
+          docker compose -f DockerCompose.yml build
+
+      # -----------------------------------------------------------
+      # RUN DOCKER COMPOSE FOR TESTING
+      # -----------------------------------------------------------
+      - name: Start services for testing
+        run: |
+          docker compose -f DockerCompose.yml up -d
+
+      # # -----------------------------------------------------------
+      # # HEALTH CHECK — vote (with retries)
+      # # -----------------------------------------------------------
+      # - name: Check vote health endpoint
+      #   run: |
+      #     echo "Waiting for vote service (http://localhost:8080/health)"
+      #     for i in {1..20}; do
+      #       if curl -s http://localhost:8080/health | grep -q "OK"; then
+      #         echo "Vote service is healthy!"
+      #         exit 0
+      #       fi
+      #       echo "Vote not ready yet... retry ($i/20)"
+      #       sleep 3
+      #     done
+      #     echo "Vote service failed health check!"
+      #     docker logs vote
+      #     exit 1
+
+      # # -----------------------------------------------------------
+      # # HEALTH CHECK — result (with retries)
+      # # -----------------------------------------------------------
+      # - name: Check result service
+      #   run: |
+      #     echo "Waiting for result service (http://localhost:8081/)"
+      #     for i in {1..20}; do
+      #       if curl -s -f http://localhost:8081/ > /dev/null; then
+      #         echo "Result service is healthy!"
+      #         exit 0
+      #       fi
+      #       echo "Result not ready yet... retry ($i/20)"
+      #       sleep 3
+      #     done
+      #     echo "Result service failed!"
+      #     docker logs result
+      #     exit 1
+
+      # -----------------------------------------------------------
+      # STOP LOCAL SERVICES
+      # -----------------------------------------------------------
+      - name: Stop test containers
+        run: |
+          docker compose -f DockerCompose.yml down
+
+      # -----------------------------------------------------------
+      # PUSH IMAGES TO DOCKER HUB
+      # -----------------------------------------------------------
+      - name: Push images to Docker Hub
+        run: |
+          docker compose -f DockerCompose.yml push
+
+           # -----------------------------------------------------------
+      # DEPLOY TO EC2 (SSH)
+      # -----------------------------------------------------------
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ env.EC2_HOST }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ env.EC2_SSH_KEY }}
+          port: 22
+          script: |
+            echo ">>> Ensuring Docker is installed"
+            if ! command -v docker &> /dev/null; then
+              sudo apt update -y
+              sudo apt install -y docker.io
+              sudo systemctl enable docker
+              sudo systemctl start docker
+            fi
+
+            echo ">>> Ensuring docker compose plugin exists"
+            if [ ! -f /usr/libexec/docker/cli-plugins/docker-compose ]; then
+              sudo mkdir -p /usr/libexec/docker/cli-plugins
+              sudo curl -SL https://github.com/docker/compose/releases/download/v2.20.0/docker-compose-linux-x86_64 \
+                -o /usr/libexec/docker/cli-plugins/docker-compose
+              sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+            fi
+
+            echo ">>> Ensure app directory exists"
+            mkdir -p /home/ubuntu/app
+
+            echo ">>> Clone or update repository"
+            cd /home/ubuntu/app
+            if [ -d ".git" ]; then
+              git pull
+            else
+              git clone https://github.com/MinaKamal12/Code_Quest.git .
+            fi
+
+            echo ">>> Pull latest docker images"
+            docker compose pull
+
+            echo ">>> Restarting containers"
+            docker compose down || true
+            docker compose up -d
+
+            echo ">>> Deployment complete!"

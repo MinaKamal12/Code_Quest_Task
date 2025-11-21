@@ -1,0 +1,30 @@
+# ---- Terraform ----
+Terraform/*
+
+# ---- AWS CLI accidental files ----
+aws/
+awscliv2.zip
+
+# ---- SSH Keys ----
+# Private keys (never commit)
+secrets/id_ed25519
+*.pem
+
+# BUT allow public keys (safe)
+!secrets/id_ed25519.pub
+!*.
+
+# ---- Python ----
+__pycache__/
+*.pyc
+
+# ---- Node ----
+node_modules/
+
+# ---- Docker ----
+*.log
+
+# ---- OS / Editors ----
+.DS_Store
+.vscode/
+.idea/

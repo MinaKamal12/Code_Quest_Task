@@ -1,0 +1,144 @@
+version: "3.9"
+
+networks:
+  frontend:
+  backend:
+
+volumes:
+  pgdata:
+
+services:
+  # -------------------
+  # Frontend Tier
+  # -------------------
+  vote:
+    build:
+      context: .
+      dockerfile: vote/Dockerfile
+    container_name: vote
+    restart: unless-stopped
+    networks:
+      - frontend
+      - backend
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+      - redis
+    entrypoint: ["/bin/sh", "-c", "  echo Waiting for postgres... &&  until pg_isready -h postgres -U admin -d votes; do sleep 2; done && echo Waiting for redis... && until redis-cli -h redis ping > /dev/null 2>&1; do sleep 2; done && echo Starting vote Flask app && python app.py"]
+    environment:
+      FLASK_ENV: development
+      DATABASE_URL: postgres://admin:admin@postgres/votes
+      REDIS_URL: redis://redis:6379
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  result:
+    build:
+      context: .
+      dockerfile: result/Dockerfile
+    container_name: result
+    restart: unless-stopped
+    networks:
+      - frontend
+      - backend
+    ports:
+      - "8081:4000"
+    depends_on:
+      - vote
+      - postgres
+    entrypoint: ["/bin/sh", "-c", "/wait-for-health.sh postgres 5432 && /wait-for-health.sh vote 80 && node server.js"]
+    environment:
+     DATABASE_URL: postgresql://admin:admin@postgres:5432/votes
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --timeout=2 http://localhost:4000/ || exit 1"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  # -------------------
+  # Backend Tier
+  # -------------------
+  worker:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    container_name: worker
+    restart: unless-stopped
+    networks:
+      - backend
+    depends_on:
+      - redis
+      - postgres
+    entrypoint: ["/bin/sh", "-c", "/wait-for-health.sh postgres 5432 && /wait-for-health.sh redis 6379 && dotnet Worker.dll"]
+    environment:
+      DATABASE_URL: postgres://admin:admin@postgres/votes
+      REDIS_URL: redis://redis:6379
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  # -------------------
+  # Seed Data
+  # -------------------
+  seed:
+    build:
+      context: .
+      dockerfile: seed-data/Dockerfile
+    container_name: seed
+    restart: "no"
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      - vote
+    entrypoint: ["/bin/sh", "-c", "/wait-for-health.sh vote 80 && ./generate-votes.sh"]
+    environment:
+      VOTE_URL: http://vote:8080
+    profiles:
+      - seed
+
+  # -------------------
+  # Backend Support Services
+  # -------------------
+  redis:
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - backend
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./healthchecks:/healthchecks:ro
+    healthcheck:
+      test: ["CMD-SHELL", "./healthchecks/redis.sh"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: unless-stopped
+    networks:
+      - backend
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: votes
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./healthchecks:/healthchecks:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d votes"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
