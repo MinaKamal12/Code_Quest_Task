@@ -1,19 +1,18 @@
-FROM node:18-slim
+FROM node:20
 
-# Create app directory
 WORKDIR /usr/src/app
 
-# Copy package files first
-COPY package*.json ./
+# Install health check tools
+RUN apt-get update && apt-get install -y postgresql-client redis-tools netcat-openbsd && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
+COPY ../wait-for-health.sh /wait-for-health.sh
+RUN chmod +x /wait-for-health.sh
+
+COPY package*.json ./
 RUN npm install --production
 
-# Copy rest of app code
 COPY . .
 
-# Expose port
 EXPOSE 4000
 
-# Start the result server
 CMD ["node", "server.js"]
