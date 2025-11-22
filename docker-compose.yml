@@ -119,22 +119,22 @@ services:
   # -------------------
   # Nginx Reverse Proxy
   # -------------------
-  nginx:
-    image: nginx:latest
-    container_name: nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/certs:/etc/letsencrypt
-      - ./nginx/www:/var/www/certbot
-    networks:
-      - frontend
-    depends_on:
-      - vote
-      - result
+  # nginx:
+  #   image: nginx:latest
+  #   container_name: nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx/conf.d:/etc/nginx/conf.d
+  #     - ./nginx/certs:/etc/letsencrypt
+  #     - ./nginx/www:/var/www/certbot
+  #   networks:
+  #     - frontend
+  #   depends_on:
+  #     - vote
+  #     - result
 
 
   # -------------------
