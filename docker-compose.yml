@@ -8,6 +8,7 @@ volumes:
   pgdata:
 
 services:
+
   # -------------------
   # Frontend Tier
   # -------------------
@@ -25,7 +26,7 @@ services:
     depends_on:
       - postgres
       - redis
-    entrypoint: ["/bin/sh", "-c", "  echo Waiting for postgres... &&  until pg_isready -h postgres -U admin -d votes; do sleep 2; done && echo Waiting for redis... && until redis-cli -h redis ping > /dev/null 2>&1; do sleep 2; done && echo Starting vote Flask app && python app.py"]
+    entrypoint: ["/bin/sh", "-c", "echo Waiting for postgres... && until pg_isready -h postgres -U admin -d votes; do sleep 2; done && echo Waiting for redis... && until redis-cli -h redis ping > /dev/null 2>&1; do sleep 2; done && echo Starting vote Flask app && python app.py"]
     environment:
       FLASK_ENV: development
       DATABASE_URL: postgres://admin:admin@postgres/votes
@@ -52,7 +53,7 @@ services:
       - postgres
     entrypoint: ["/bin/sh", "-c", "/wait-for-health.sh postgres 5432 && /wait-for-health.sh vote 80 && node server.js"]
     environment:
-     DATABASE_URL: postgresql://admin:admin@postgres:5432/votes
+      DATABASE_URL: postgresql://admin:admin@postgres:5432/votes
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- --timeout=2 http://localhost:4000/ || exit 1"]
       interval: 10s
@@ -106,33 +107,18 @@ services:
   # -------------------
   # Backend Support Services
   # -------------------
-  # redis:
-  #   image: redis:7
-  #   container_name: redis
-  #   restart: unless-stopped
-  #   command: [ "sh", "-c", "apt-get update && apt-get install -y redis-tools && redis-server" ]
-
-  #   networks:
-  #     - backend
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - ./healthchecks:/healthchecks:ro
-  #   # healthcheck:
-  #   #   test: ["CMD-SHELL", "./healthchecks/redis.sh"]
-  #   #   interval: 10s
-  #   #   retries: 5
-  #   #   timeout: 5s
-
   redis:
-  image: redis:7
-  container_name: redis
-  restart: unless-stopped
-  networks:
-    - backend
-  ports:
-    - "6379:6379"
+    image: redis:7
+    container_name: redis
+    restart: unless-stopped
+    networks:
+      - backend
+    ports:
+      - "6379:6379"
 
+  # -------------------
+  # Nginx Reverse Proxy
+  # -------------------
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -149,6 +135,9 @@ services:
       - vote
       - result
 
+  # -------------------
+  # PostgreSQL
+  # -------------------
   postgres:
     image: postgres:15
     container_name: postgres
