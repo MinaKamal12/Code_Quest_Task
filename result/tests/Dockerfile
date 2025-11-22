@@ -1,12 +1,19 @@
-FROM node:8.9-slim
+FROM node:18-slim
 
-RUN apt-get update -qq && apt-get install -qy \ 
-    ca-certificates \
-    bzip2 \
-    curl \
-    libfontconfig \
-    --no-install-recommends
-RUN yarn global add phantomjs-prebuilt
-ADD . /app
-WORKDIR /app
-CMD ["/app/tests.sh"]
+# Create app directory
+WORKDIR /usr/src/app
+
+# Copy package files first
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install --production
+
+# Copy rest of app code
+COPY . .
+
+# Expose port
+EXPOSE 4000
+
+# Start the result server
+CMD ["node", "server.js"]
